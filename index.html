@@ -629,7 +629,7 @@
 
     <div class="updated-row">
       <span id="updated-time"></span>
-      <button class="key-btn" onclick="changeKey()">Change API key</button>
+      <button class="key-btn" onclick="openSettings()">⚙ Settings</button>
     </div>
 
     <div class="timeline" id="timeline"></div>
@@ -645,8 +645,27 @@
     </div>
 
     <div class="footer">
-      AI-powered via Claude · Always verify at njtransit.com &amp; mta.info
+      Live data: MTA API · NJ Transit API · 511NY · Claude AI fallback<br>
+      Always verify at njtransit.com &amp; mta.info
     </div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ── -->
+<div id="settings-modal" style="display:none;position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:24px;">
+  <div onclick="closeSettings()" style="position:absolute;inset:0;background:rgba(0,0,0,0.7);"></div>
+  <div style="position:relative;background:#0f1218;border:1px solid #2a3348;border-radius:12px;padding:24px;width:100%;max-width:400px;z-index:1;">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:#fff;margin-bottom:20px;">⚙ Settings</div>
+
+    <label class="setup-label">Anthropic API Key <span style="color:#4a566e;font-weight:400;text-transform:none;letter-spacing:0">(Claude fallback)</span></label>
+    <input type="password" id="settings-api-key" class="setup-input" placeholder="sk-ant-..." style="margin-bottom:14px;" />
+
+    <label class="setup-label">Cloudflare Worker URL <span style="color:#4a566e;font-weight:400;text-transform:none;letter-spacing:0">(live NJT + I-280)</span></label>
+    <input type="text" id="settings-worker-url" class="setup-input" placeholder="https://commute-proxy.yourname.workers.dev" style="margin-bottom:4px;" />
+    <div style="font-size:11px;color:#4a566e;margin-bottom:16px;">Leave blank to use Claude as fallback for NJT and traffic legs.</div>
+
+    <button class="setup-btn" onclick="saveSettings()">Save</button>
+    <button onclick="closeSettings()" style="width:100%;max-width:380px;padding:10px;background:none;border:1px solid #2a3348;border-radius:8px;color:#7a8899;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px;text-transform:uppercase;">Cancel</button>
   </div>
 </div>
 
@@ -656,40 +675,46 @@
 const MORNING_LEGS = [
   {
     id: "i280",
+    source: "511ny",
+    sourceParams: { direction: "east" },
     icon: "🚗",
     title: "Livingston → Brick Church",
-    subtitle: "I-280 East · ~12 min drive",
+    subtitle: "I-280 East · Exit 6 → 11A · ~12 min",
     dot: "#f5a623",
     question: "What are current traffic conditions on I-280 East in New Jersey specifically between Exit 6 (Livingston/Eisenhower Parkway) and Exit 11A (East Orange/Brick Church)? Are there any accidents, incidents or significant congestion on that specific stretch right now?",
     alt: "Alternate roads from Livingston NJ to Brick Church NJ Transit station if I-280 is slow (e.g. Northfield Ave, Springfield Ave).",
   },
   {
     id: "njt",
+    source: "njt",
+    sourceParams: { station: "BRICK CHURCH", time: "07:44" },
     icon: "🚆",
     title: "Brick Church → Penn Station",
     subtitle: "NJ Transit Morris & Essex · 7:44 AM",
     dot: "#4a9eff",
-    question: "Are there any current service alerts, delays or cancellations on the NJ Transit Morris and Essex Line (Morristown Line) today? Specifically for train 6614 or the 7:44 AM departure from Brick Church station toward New York Penn Station. Will that train run on time?",
+    question: "Are there any current service alerts, delays or cancellations on the NJ Transit Morris and Essex Line (Morristown Line) today? Specifically for the 7:44 AM departure from Brick Church station toward New York Penn Station. Will that train run on time?",
     alt: "Next NJ Transit trains from Brick Church to Penn Station after 7:44 AM if that train is delayed or cancelled.",
   },
   {
     id: "sub123",
+    source: "mta",
+    sourceParams: { routes: ["1", "2", "3"] },
     icon: "🚇",
     title: "Penn Station → Times Square",
     subtitle: "NYC Subway 1/2/3 · 34th→42nd St",
     dot: "#ee352e",
     pills: ["1","2","3"],
-    question: "Are there any current service alerts or delays on the NYC MTA Subway 1, 2, or 3 train lines today?",
     alt: "Alternate ways from Penn Station (34th St) to Times Square (42nd St) if 1/2/3 trains have issues, such as A/C/E or walking.",
   },
   {
     id: "shuttle",
+    source: "mta",
+    sourceParams: { routes: ["GS"] },
     icon: "🚇",
     title: "Times Square → Grand Central",
     subtitle: "S Shuttle · 42nd Street",
     dot: "#2ecc8a",
     pills: ["S"],
-    question: "Is the NYC MTA S Shuttle (42nd Street Shuttle) between Times Square and Grand Central running normally today? Any suspensions or delays?",
     alt: "Alternate ways from Times Square to Grand Central if S shuttle is not running (walking 42nd St ~8 min, or 4/5/6 at Lex Ave).",
   },
 ];
@@ -697,38 +722,44 @@ const MORNING_LEGS = [
 const EVENING_LEGS = [
   {
     id: "shuttle-eve",
+    source: "mta",
+    sourceParams: { routes: ["GS"] },
     icon: "🚇",
     title: "Grand Central → Times Square",
-    subtitle: "S Shuttle · ~4:20 PM",
+    subtitle: "S Shuttle · 42nd Street",
     dot: "#2ecc8a",
     pills: ["S"],
-    question: "Is the NYC MTA S Shuttle (42nd Street Shuttle) between Grand Central and Times Square running normally in the afternoon? Any suspensions or delays?",
     alt: "Alternate ways from Grand Central to Times Square if S shuttle is not running (walking 42nd St ~8 min westbound).",
   },
   {
     id: "sub123-eve",
+    source: "mta",
+    sourceParams: { routes: ["1", "2", "3"] },
     icon: "🚇",
     title: "Times Square → Penn Station",
     subtitle: "NYC Subway 1/2/3 · 42nd→34th St",
     dot: "#ee352e",
     pills: ["1","2","3"],
-    question: "Are there any current service alerts or delays on the NYC MTA Subway 1, 2, or 3 train lines today, particularly for afternoon/evening service?",
     alt: "Alternate ways from Times Square to Penn Station if 1/2/3 trains have issues, such as A/C/E from Port Authority or walking 8 min down 7th Ave.",
   },
   {
     id: "njt-eve",
+    source: "njt",
+    sourceParams: { station: "NY", time: "17:52" },
     icon: "🚆",
     title: "Penn Station → Brick Church",
     subtitle: "NJ Transit Morris & Essex · 5:52 PM",
     dot: "#4a9eff",
-    question: "Are there any current service alerts, delays or cancellations on the NJ Transit Morris and Essex Line (Morristown Line) today? Specifically for train 6457 or the 5:52 PM departure from New York Penn Station toward Brick Church station. Will that train run on time?",
+    question: "Are there any current service alerts, delays or cancellations on the NJ Transit Morris and Essex Line (Morristown Line) today? Specifically for the 5:52 PM departure from New York Penn Station toward Brick Church station. Will that train run on time?",
     alt: "Next NJ Transit trains from Penn Station to Brick Church after 5:52 PM if that train is delayed or cancelled.",
   },
   {
     id: "i280-eve",
+    source: "511ny",
+    sourceParams: { direction: "west" },
     icon: "🚗",
     title: "Brick Church → Livingston",
-    subtitle: "I-280 West · ~15–25 min (rush hour)",
+    subtitle: "I-280 West · Exit 11A → 6 · ~15–25 min",
     dot: "#f5a623",
     question: "What are current traffic conditions on I-280 West in New Jersey specifically between Exit 11A (East Orange/Brick Church) and Exit 6 (Livingston/Eisenhower Parkway) during evening rush hour? Any accidents or significant congestion on that specific stretch?",
     alt: "Alternate roads from Brick Church NJ Transit station to Livingston NJ if I-280 West is congested (e.g. Springfield Ave, Northfield Ave).",
@@ -744,9 +775,12 @@ let legErrors = {};
 let openLegs = {};
 let lastUpdated = null;
 
-// ── API Key ────────────────────────────────────────────────────────────────
+// ── Storage helpers ────────────────────────────────────────────────────────
 
-function getKey() { return localStorage.getItem('anthropic_api_key') || ''; }
+function getKey()       { return localStorage.getItem('anthropic_api_key') || ''; }
+function getWorkerUrl() { return (localStorage.getItem('worker_url') || '').replace(/\/$/, ''); }
+
+// ── Setup screen ───────────────────────────────────────────────────────────
 
 function saveKey() {
   const key = document.getElementById('api-key-input').value.trim();
@@ -760,18 +794,36 @@ function saveKey() {
   showDashboard();
 }
 
-function changeKey() {
-  localStorage.removeItem('anthropic_api_key');
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('setup').style.display = 'flex';
-  document.getElementById('api-key-input').value = '';
-}
-
 function showDashboard() {
   document.getElementById('setup').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   renderTimeline();
   startClock();
+}
+
+// ── Settings modal ─────────────────────────────────────────────────────────
+
+function openSettings() {
+  document.getElementById('settings-api-key').value = getKey();
+  document.getElementById('settings-worker-url').value = getWorkerUrl();
+  document.getElementById('settings-modal').style.display = 'flex';
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').style.display = 'none';
+}
+
+function saveSettings() {
+  const key = document.getElementById('settings-api-key').value.trim();
+  const workerUrl = document.getElementById('settings-worker-url').value.trim();
+  if (key) localStorage.setItem('anthropic_api_key', key);
+  else localStorage.removeItem('anthropic_api_key');
+  if (workerUrl) localStorage.setItem('worker_url', workerUrl);
+  else localStorage.removeItem('worker_url');
+  closeSettings();
+  // Reset data so next refresh uses new settings
+  legData = {}; legErrors = {};
+  renderTimeline();
 }
 
 // ── Clock ──────────────────────────────────────────────────────────────────
@@ -818,13 +870,12 @@ function buildLegHTML(leg) {
   const data = legData[leg.id];
   const loading = legLoading[leg.id];
   const error = legErrors[leg.id];
-  const open = openLegs[leg.id] !== false; // default open
+  const open = openLegs[leg.id] !== false;
   const status = data?.status || 'idle';
 
   const dotStyle = `background:${leg.dot};box-shadow:0 0 6px ${leg.dot}44`;
   const cardClass = data ? `status-${status}` : '';
 
-  // Badge
   let badgeClass = 'badge-idle', badgeText = '–';
   if (loading) { badgeClass = 'badge-loading'; badgeText = 'Checking…'; }
   else if (error) { badgeClass = 'badge-alert'; badgeText = '✕ Error'; }
@@ -833,15 +884,13 @@ function buildLegHTML(leg) {
     [badgeClass, badgeText] = m[status] || ['badge-idle','–'];
   }
 
-  // Pills
   const pillsHTML = (leg.pills || []).map(p =>
     `<div class="pill ${p==='S'?'pill-S':'pill-123'}">${p}</div>`
   ).join('');
 
-  // Body content
   let bodyHTML = '';
   if (loading) {
-    bodyHTML = `<div class="leg-loading"><div class="dot-pulse"><span></span><span></span><span></span></div> Searching for alerts…</div>`;
+    bodyHTML = `<div class="leg-loading"><div class="dot-pulse"><span></span><span></span><span></span></div> Fetching live data…</div>`;
   } else if (error) {
     bodyHTML = `<div class="leg-error">⚠ ${error}</div>`;
   } else if (data) {
@@ -868,7 +917,7 @@ function buildLegHTML(leg) {
       ${data.disclaimer ? `<div class="disclaimer">ℹ ${data.disclaimer}</div>` : ''}
     `;
   } else {
-    bodyHTML = `<div class="leg-idle">Press ⟳ to load alerts.</div>`;
+    bodyHTML = `<div class="leg-idle">Press ⟳ to load live data.</div>`;
   }
 
   return `
@@ -920,27 +969,160 @@ function updateOverall() {
   setOverall('ok', '✓ All clear — your commute looks smooth');
 }
 
-// ── Fetch ──────────────────────────────────────────────────────────────────
+// ── Live data fetchers ─────────────────────────────────────────────────────
 
-async function fetchLeg(leg) {
+async function fetchMTAAlerts(routes) {
+  const res = await fetch(
+    'https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts.json'
+  );
+  if (!res.ok) throw new Error(`MTA API ${res.status}`);
+  const data = await res.json();
+  const now = Math.floor(Date.now() / 1000);
+
+  const active = (data.entity || []).filter(e => {
+    if (!e.alert) return false;
+    const periods = e.alert.active_period || [];
+    const isActive = periods.length === 0 || periods.some(p =>
+      (!p.start || p.start <= now) && (!p.end || p.end >= now)
+    );
+    if (!isActive) return false;
+    return (e.alert.informed_entity || []).some(ie => routes.includes(ie.route_id));
+  });
+
+  const getText = (alert, field) => {
+    const t = alert[field]?.translation || [];
+    return (t.find(x => x.language === 'en') || t[0])?.text || '';
+  };
+
+  const HIGH_EFFECTS = ['NO_SERVICE', 'SIGNIFICANT_DELAYS', 'STOP_MOVED'];
+  const MED_EFFECTS  = ['REDUCED_SERVICE', 'DETOUR', 'MODIFIED_SERVICE', 'SUSPENSION'];
+
+  const alerts = active.map(e => {
+    const effect = e.alert.effect || '';
+    const severity = HIGH_EFFECTS.includes(effect) ? 'high'
+      : MED_EFFECTS.includes(effect) ? 'medium' : 'low';
+    const text = getText(e.alert, 'header_text') || getText(e.alert, 'description_text');
+    return { severity, text };
+  }).filter(a => a.text);
+
+  const hasHigh = alerts.some(a => a.severity === 'high');
+  const hasMed  = alerts.some(a => a.severity === 'medium');
+
+  return {
+    status: hasHigh ? 'alert' : hasMed ? 'warn' : 'ok',
+    summary: alerts.length === 0 ? 'Good service' : `${alerts.length} active alert${alerts.length !== 1 ? 's' : ''}`,
+    estimatedDelay: hasHigh ? 'Delays' : 'On time',
+    travelTime: '—',
+    alerts,
+    alternateRoutes: '',
+    disclaimer: 'Live data · MTA API',
+  };
+}
+
+async function fetchNJTrain(station, targetTime) {
+  const workerUrl = getWorkerUrl();
+  const res = await fetch(`${workerUrl}/njt?station=${encodeURIComponent(station)}`);
+  if (!res.ok) throw new Error(`Proxy error ${res.status}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+
+  const raw = data?.ITEMS?.ITEM;
+  const items = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+
+  const train = items.find(item =>
+    (item.SCHED_DEP_DATE || '').substring(0, 5) === targetTime
+  );
+
+  if (!train) {
+    const next = items.slice(0, 3)
+      .map(t => `${(t.SCHED_DEP_DATE||'').substring(0,5)} → ${t.DESTINATION} (${t.STATUS})`)
+      .join(' · ');
+    return {
+      status: 'warn',
+      summary: 'Train not in schedule',
+      estimatedDelay: 'Check NJT app',
+      travelTime: '—',
+      alerts: [{ severity: 'medium', text: next ? `Nearby departures: ${next}` : 'No schedule data' }],
+      alternateRoutes: '',
+      disclaimer: 'Live data · NJ Transit API',
+    };
+  }
+
+  const secLate  = parseInt(train.SEC_LATE || '0', 10);
+  const minLate  = Math.ceil(secLate / 60);
+  const cancelled = /cancel/i.test(train.STATUS || '');
+
+  let status = 'ok', estimatedDelay = 'On time';
+  if (cancelled)       { status = 'alert'; estimatedDelay = 'Cancelled'; }
+  else if (minLate >= 10) { status = 'alert'; estimatedDelay = `+${minLate} min`; }
+  else if (minLate > 0)   { status = 'warn';  estimatedDelay = `+${minLate} min`; }
+
+  const alerts = [];
+  if (cancelled) {
+    alerts.push({ severity: 'high', text: `Train ${train.TRAIN_ID} is cancelled` });
+  } else if (minLate > 0) {
+    alerts.push({ severity: minLate >= 10 ? 'high' : 'medium',
+      text: `Train ${train.TRAIN_ID} running ${minLate} min late (${train.STATUS})` });
+  }
+  if (train.TRACK) alerts.push({ severity: 'low', text: `Departing Track ${train.TRACK}` });
+
+  return {
+    status,
+    summary: cancelled ? 'Cancelled' : minLate === 0 ? 'On time' : `${minLate} min late`,
+    estimatedDelay,
+    travelTime: '—',
+    alerts,
+    alternateRoutes: '',
+    disclaimer: `Live data · NJ Transit API · Train ${train.TRAIN_ID}`,
+  };
+}
+
+async function fetch511Traffic(direction) {
+  const workerUrl = getWorkerUrl();
+  const res = await fetch(`${workerUrl}/traffic`);
+  if (!res.ok) throw new Error(`Proxy error ${res.status}`);
+  const events = await res.json();
+  if (events.error) throw new Error(events.error);
+
+  const i280 = (Array.isArray(events) ? events : []).filter(e => {
+    const road = (e.RoadwayName || '').replace(/\s/g, '').toLowerCase();
+    const dir  = (e.DirectionOfTravel || '').toLowerCase();
+    return road.includes('280') &&
+      (direction === 'east' ? dir.includes('east') : dir.includes('west'));
+  });
+
+  const alerts = i280.map(e => {
+    const sev = (e.Severity || '').toLowerCase();
+    return {
+      severity: sev === 'major' ? 'high' : sev === 'moderate' ? 'medium' : 'low',
+      text: e.Description || `${e.EventType || 'Incident'} · ${e.RoadwayName} ${e.DirectionOfTravel}`,
+    };
+  });
+
+  const hasHigh = alerts.some(a => a.severity === 'high');
+  const hasMed  = alerts.some(a => a.severity === 'medium');
+
+  return {
+    status: hasHigh ? 'alert' : (hasMed || alerts.length > 0) ? 'warn' : 'ok',
+    summary: alerts.length === 0 ? 'No incidents on I-280' : `${alerts.length} incident${alerts.length !== 1 ? 's' : ''} on I-280`,
+    estimatedDelay: alerts.length === 0 ? 'Normal' : 'Allow extra time',
+    travelTime: '—',
+    alerts,
+    alternateRoutes: '',
+    disclaimer: 'Live data · 511NY · I-280 Exit 6–11A',
+  };
+}
+
+// ── Claude fallback (NJT + 511NY when no worker URL set) ──────────────────
+
+async function fetchFromClaude(leg) {
   const key = getKey();
+  if (!key) throw new Error('No API key — open ⚙ Settings to add your Anthropic key or Worker URL');
   const now = new Date();
   const timeStr = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
   const dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
 
-  const prompt = `Today is ${dateStr}, current time is ${timeStr} Eastern Time.
-
-${leg.question}
-
-Respond with ONLY a JSON object — no markdown, no explanation, just raw JSON:
-{"status":"ok","summary":"one sentence","estimatedDelay":"On time","travelTime":"12 min","alerts":[],"alternateRoutes":"","disclaimer":"Based on typical conditions — verify at njtransit.com or mta.info"}
-
-Rules:
-- status: "ok" = normal, "warn" = minor issues, "alert" = major delays/cancellations
-- estimatedDelay: "On time" / "+N min" / "Major delays" / "Suspended"
-- alerts: array of {"severity":"low"|"medium"|"high","text":"description"}, or [] if none
-- alternateRoutes: "${leg.alt}" — only if status is warn or alert, otherwise ""
-- First character must be { and last must be }`;
+  const prompt = `Today is ${dateStr}, current time is ${timeStr} Eastern Time.\n\n${leg.question}\n\nRespond with ONLY a JSON object — no markdown, no explanation, just raw JSON:\n{"status":"ok","summary":"one sentence","estimatedDelay":"On time","travelTime":"12 min","alerts":[],"alternateRoutes":"","disclaimer":"Based on typical conditions — verify at njtransit.com or mta.info"}\n\nRules:\n- status: "ok" = normal, "warn" = minor issues, "alert" = major delays/cancellations\n- estimatedDelay: "On time" / "+N min" / "Major delays" / "Suspended"\n- alerts: array of {"severity":"low"|"medium"|"high","text":"description"}, or [] if none\n- alternateRoutes: "${leg.alt}" — only if status is warn or alert, otherwise ""\n- First character must be { and last must be }`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -959,16 +1141,32 @@ Rules:
 
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`API ${res.status}: ${txt.slice(0, 150)}`);
+    throw new Error(`Claude API ${res.status}: ${txt.slice(0, 120)}`);
   }
 
   const data = await res.json();
   const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
   if (!text) throw new Error('Empty response');
-
   const s = text.indexOf('{'), e = text.lastIndexOf('}');
-  if (s === -1 || e === -1) throw new Error(`No JSON found. Got: ${text.slice(0,80)}`);
+  if (s === -1 || e === -1) throw new Error(`No JSON in response`);
   return JSON.parse(text.slice(s, e + 1));
+}
+
+// ── Fetch dispatcher ───────────────────────────────────────────────────────
+
+async function fetchLeg(leg) {
+  switch (leg.source) {
+    case 'mta':
+      return fetchMTAAlerts(leg.sourceParams.routes);
+    case 'njt':
+      return getWorkerUrl() ? fetchNJTrain(leg.sourceParams.station, leg.sourceParams.time)
+                            : fetchFromClaude(leg);
+    case '511ny':
+      return getWorkerUrl() ? fetch511Traffic(leg.sourceParams.direction)
+                            : fetchFromClaude(leg);
+    default:
+      return fetchFromClaude(leg);
+  }
 }
 
 // ── Refresh all ────────────────────────────────────────────────────────────
@@ -985,8 +1183,7 @@ async function refreshAll() {
 
   await Promise.all(legs.map(async leg => {
     try {
-      const result = await fetchLeg(leg);
-      legData[leg.id] = result;
+      legData[leg.id] = await fetchLeg(leg);
     } catch(e) {
       legErrors[leg.id] = e.message;
     } finally {
@@ -1005,11 +1202,9 @@ async function refreshAll() {
 // ── Boot ───────────────────────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', () => {
-  const key = getKey();
-  if (key) {
+  if (getKey()) {
     showDashboard();
   }
-  // Allow Enter key on setup
   document.getElementById('api-key-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') saveKey();
   });
