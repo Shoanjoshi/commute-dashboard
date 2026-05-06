@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Commute">
+<title>Commute Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #07090f;
+    --surface: #0f1218;
+    --surface2: #161b25;
+    --border: #1e2535;
+    --border2: #2a3348;
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.12);
+    --red: #e8433a;
+    --red-dim: rgba(232,67,58,0.12);
+    --green: #2ecc8a;
+    --green-dim: rgba(46,204,138,0.1);
+    --blue: #4a9eff;
+    --blue-dim: rgba(74,158,255,0.1);
+    --dim: #4a566e;
+    --text: #d8e0ee;
+    --text-muted: #7a8899;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 400;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Setup Screen ── */
+  #setup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  .setup-icon { font-size: 48px; margin-bottom: 20px; }
+
+  .setup-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .setup-title em { color: var(--amber); font-style: normal; }
+
+  .setup-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+    line-height: 1.6;
+    max-width: 320px;
+  }
+
+  .setup-sub a { color: var(--blue); text-decoration: none; }
+
+  .setup-input-wrap {
+    width: 100%;
+    max-width: 380px;
+    margin-bottom: 12px;
+  }
+
+  .setup-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 8px;
+    text-align: left;
+    display: block;
+  }
+
+  .setup-input {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .setup-input:focus { border-color: var(--amber); }
+  .setup-input::placeholder { color: var(--dim); }
+
+  .setup-btn {
+    width: 100%;
+    max-width: 380px;
+    padding: 14px;
+    background: var(--amber);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: background 0.15s;
+  }
+
+  .setup-btn:hover { background: #fbb840; }
+
+  .setup-note {
+    font-size: 11px;
+    color: var(--dim);
+    max-width: 320px;
+    line-height: 1.6;
+  }
+
+  .setup-error {
+    color: var(--red);
+    font-size: 12px;
+    margin-top: 8px;
+    min-height: 18px;
+  }
+
+  /* ── Dashboard ── */
+  #dashboard { display: none; }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(7,9,15,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+  }
+
+  .topbar-inner {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .brand {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .brand em { color: var(--amber); font-style: normal; }
+  .brand-sub { font-size: 11px; font-weight: 400; color: var(--dim); letter-spacing: 0.5px; }
+
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  .clock-display {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 1px;
+  }
+
+  .refresh-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--amber);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .refresh-btn:hover { background: #fbb840; transform: translateY(-1px); }
+  .refresh-btn:active { transform: scale(0.95); }
+  .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .refresh-btn.spinning { animation: spin 1s linear infinite; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Content ── */
+  .content {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 16px 16px 48px;
+  }
+
+  /* ── Direction tabs ── */
+  .dir-tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+
+  .dir-tab {
+    flex: 1;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dim);
+    transition: all 0.15s;
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  .dir-tab.active { background: var(--amber); color: #000; }
+
+  /* ── Overall status ── */
+  .overall-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    border: 1px solid transparent;
+    transition: all 0.3s;
+  }
+
+  .overall-bar.ok { background: var(--green-dim); border-color: rgba(46,204,138,0.2); color: var(--green); }
+  .overall-bar.warn { background: var(--amber-dim); border-color: rgba(245,166,35,0.25); color: var(--amber); }
+  .overall-bar.alert { background: var(--red-dim); border-color: rgba(232,67,58,0.25); color: var(--red); }
+  .overall-bar.loading { background: var(--blue-dim); border-color: rgba(74,158,255,0.2); color: var(--blue); }
+  .overall-bar.idle { background: var(--surface); border-color: var(--border); color: var(--dim); }
+
+  /* ── Updated time ── */
+  .updated-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .key-btn {
+    background: none;
+    border: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 11px;
+    text-decoration: underline;
+    padding: 0;
+  }
+
+  /* ── Timeline ── */
+  .timeline {
+    position: relative;
+    padding-left: 26px;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 16px;
+    bottom: 16px;
+    width: 2px;
+    background: linear-gradient(to bottom, #f5a623, #4a9eff, #ee352e, #2ecc8a);
+    opacity: 0.25;
+  }
+
+  /* ── Leg card ── */
+  .leg-wrap {
+    position: relative;
+    margin-bottom: 10px;
+  }
+
+  .leg-dot {
+    position: absolute;
+    left: -22px;
+    top: 16px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    z-index: 1;
+    transition: box-shadow 0.3s;
+  }
+
+  .leg-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .leg-card.status-ok { border-color: rgba(46,204,138,0.2); }
+  .leg-card.status-warn { border-color: rgba(245,166,35,0.25); }
+  .leg-card.status-alert { border-color: rgba(232,67,58,0.3); }
+
+  .leg-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .leg-icon { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+
+  .leg-info { flex: 1; min-width: 0; }
+
+  .leg-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .leg-sub { font-size: 11px; color: var(--dim); margin-top: 1px; }
+
+  .leg-pills { display: flex; gap: 3px; margin-top: 4px; }
+
+  .pill {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px; font-weight: 900;
+  }
+
+  .pill-123 { background: #EE352E; color: #fff; }
+  .pill-S { background: #808183; color: #fff; font-size: 9px; }
+
+  .leg-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .badge-ok { background: rgba(46,204,138,0.12); color: var(--green); }
+  .badge-warn { background: rgba(245,166,35,0.12); color: var(--amber); }
+  .badge-alert { background: rgba(232,67,58,0.12); color: var(--red); }
+  .badge-loading { background: var(--blue-dim); color: var(--blue); }
+  .badge-idle { background: var(--surface2); color: var(--dim); }
+
+  .leg-chevron {
+    color: var(--dim);
+    font-size: 10px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+    margin-left: 2px;
+  }
+
+  .leg-chevron.open { transform: rotate(180deg); }
+
+  /* ── Leg body ── */
+  .leg-body {
+    border-top: 1px solid var(--border);
+    padding: 12px 14px;
+  }
+
+  .leg-loading {
+    font-size: 12px;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dot-pulse {
+    display: flex; gap: 4px; align-items: center;
+  }
+
+  .dot-pulse span {
+    width: 5px; height: 5px;
+    background: var(--blue);
+    border-radius: 50%;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  .leg-error {
+    font-size: 12px;
+    color: var(--red);
+    padding: 8px 10px;
+    background: var(--red-dim);
+    border-radius: 6px;
+    word-break: break-word;
+  }
+
+  .leg-meta {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .meta-lbl {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 2px;
+  }
+
+  .meta-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .meta-val.ok { color: var(--green); }
+  .meta-val.warn { color: var(--amber); }
+  .meta-val.alert { color: var(--red); }
+
+  .summary-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .alerts-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+
+  .alert-item {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--surface2);
+    font-size: 12px;
+    line-height: 1.5;
+    color: #a8b4c4;
+    border-left: 3px solid transparent;
+  }
+
+  .alert-item.low { border-color: var(--green); }
+  .alert-item.medium { border-color: var(--amber); }
+  .alert-item.high { border-color: var(--red); }
+
+  .no-alerts { font-size: 12px; color: var(--dim); font-style: italic; }
+
+  .alt-routes {
+    margin-top: 8px;
+    padding: 9px 11px;
+    border-radius: 6px;
+    background: var(--blue-dim);
+    border: 1px solid rgba(74,158,255,0.15);
+  }
+
+  .alt-lbl {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 4px;
+  }
+
+  .alt-text { font-size: 12px; color: #8898b0; line-height: 1.5; }
+
+  .disclaimer {
+    font-size: 10px;
+    color: var(--dim);
+    font-style: italic;
+    margin-top: 8px;
+  }
+
+  .leg-idle {
+    font-size: 12px;
+    color: var(--dim);
+    font-style: italic;
+  }
+
+  /* ── Quick links ── */
+  .quick-links {
+    margin-top: 20px;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .ql-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 10px;
+  }
+
+  .ql-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .ql-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .ql-link:hover, .ql-link:active { background: #1e2535; color: #fff; border-color: var(--border2); }
+  .ql-link-icon { font-size: 16px; flex-shrink: 0; }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--dim);
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Setup Screen ── -->
+<div id="setup">
+  <div class="setup-icon">🚆</div>
+  <div class="setup-title">COMMUTE <em>DASHBOARD</em></div>
+  <p class="setup-sub">
+    Enter your Anthropic API key to power live transit alerts.<br>
+    Get your key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+  </p>
+  <div class="setup-input-wrap">
+    <label class="setup-label" for="api-key-input">Anthropic API Key</label>
+    <input
+      type="password"
+      id="api-key-input"
+      class="setup-input"
+      placeholder="sk-ant-..."
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+    />
+  </div>
+  <div class="setup-error" id="setup-error"></div>
+  <button class="setup-btn" onclick="saveKey()">Save & Open Dashboard</button>
+  <p class="setup-note">
+    Your key is stored only in this browser's local storage — never sent anywhere except directly to Anthropic's API.
+  </p>
+</div>
+
+<!-- ── Dashboard ── -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div>
+        <div class="brand">COMMUTE <em>DASHBOARD</em></div>
+        <div class="brand-sub">Livingston ↔ Grand Central</div>
+      </div>
+      <div class="topbar-right">
+        <div class="clock-display" id="clock">--:--</div>
+        <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()" title="Refresh alerts">⟳</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="dir-tabs">
+      <button class="dir-tab active" id="tab-am" onclick="setDir('am')">↗ Morning · 7:44 AM Train</button>
+      <button class="dir-tab" id="tab-pm" onclick="setDir('pm')">↙ Evening · 5:52 PM Train</button>
+    </div>
+
+    <div class="overall-bar idle" id="overall-bar">Press ⟳ to fetch live alerts</div>
+
+    <div class="updated-row">
+      <span id="updated-time"></span>
+      <button class="key-btn" onclick="changeKey()">Change API key</button>
+    </div>
+
+    <div class="timeline" id="timeline"></div>
+
+    <div class="quick-links">
+      <div class="ql-title">Live Sources</div>
+      <div class="ql-grid">
+        <a href="https://www.njtransit.com/alerts" target="_blank" class="ql-link"><span class="ql-link-icon">🚆</span>NJ Transit Alerts</a>
+        <a href="https://mta.info/alerts" target="_blank" class="ql-link"><span class="ql-link-icon">🚇</span>MTA Service Status</a>
+        <a href="https://511nj.org" target="_blank" class="ql-link"><span class="ql-link-icon">🚗</span>511 NJ Traffic</a>
+        <a href="https://maps.google.com" target="_blank" class="ql-link"><span class="ql-link-icon">🗺️</span>Google Maps</a>
+      </div>
+    </div>
+
+    <div class="footer">
+      AI-powered via Claude · Always verify at njtransit.com &amp; mta.info
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Route definitions ──────────────────────────────────────────────────────
+
+const MORNING_LEGS = [
+  {
+    id: "i280",
+    icon: "🚗",
+    title: "Livingston → Brick Church",
+    subtitle: "I-280 East · ~12 min drive",
+    dot: "#f5a623",
+    question: "What are current traffic conditions on I-280 East in New Jersey between Livingston and East Orange / Brick Church area? Are there any accidents, incidents or significant congestion right now?",
+    alt: "Alternate roads from Livingston NJ to Brick Church NJ Transit station if I-280 is slow (e.g. Northfield Ave, Springfield Ave).",
+  },
+  {
+    id: "njt",
+    icon: "🚆",
+    title: "Brick Church → Penn Station",
+    subtitle: "NJ Transit Morris & Essex · 7:44 AM",
+    dot: "#4a9eff",
+    question: "Are there any current service alerts, delays or cancellations on the NJ Transit Morris and Essex Line (Morristown Line) today? Specifically for morning rush service.",
+    alt: "Next NJ Transit trains from Brick Church to Penn Station after 7:44 AM if that train is delayed or cancelled.",
+  },
+  {
+    id: "sub123",
+    icon: "🚇",
+    title: "Penn Station → Times Square",
+    subtitle: "NYC Subway 1/2/3 · 34th→42nd St",
+    dot: "#ee352e",
+    pills: ["1","2","3"],
+    question: "Are there any current service alerts or delays on the NYC MTA Subway 1, 2, or 3 train lines today?",
+    alt: "Alternate ways from Penn Station (34th St) to Times Square (42nd St) if 1/2/3 trains have issues, such as A/C/E or walking.",
+  },
+  {
+    id: "shuttle",
+    icon: "🚇",
+    title: "Times Square → Grand Central",
+    subtitle: "S Shuttle · 42nd Street",
+    dot: "#2ecc8a",
+    pills: ["S"],
+    question: "Is the NYC MTA S Shuttle (42nd Street Shuttle) between Times Square and Grand Central running normally today? Any suspensions or delays?",
+    alt: "Alternate ways from Times Square to Grand Central if S shuttle is not running (walking 42nd St ~8 min, or 4/5/6 at Lex Ave).",
+  },
+];
+
+const EVENING_LEGS = [
+  {
+    id: "shuttle-eve",
+    icon: "🚇",
+    title: "Grand Central → Times Square",
+    subtitle: "S Shuttle · ~4:20 PM",
+    dot: "#2ecc8a",
+    pills: ["S"],
+    question: "Is the NYC MTA S Shuttle (42nd Street Shuttle) between Grand Central and Times Square running normally in the afternoon? Any suspensions or delays?",
+    alt: "Alternate ways from Grand Central to Times Square if S shuttle is not running (walking 42nd St ~8 min westbound).",
+  },
+  {
+    id: "sub123-eve",
+    icon: "🚇",
+    title: "Times Square → Penn Station",
+    subtitle: "NYC Subway 1/2/3 · 42nd→34th St",
+    dot: "#ee352e",
+    pills: ["1","2","3"],
+    question: "Are there any current service alerts or delays on the NYC MTA Subway 1, 2, or 3 train lines today, particularly for afternoon/evening service?",
+    alt: "Alternate ways from Times Square to Penn Station if 1/2/3 trains have issues, such as A/C/E from Port Authority or walking 8 min down 7th Ave.",
+  },
+  {
+    id: "njt-eve",
+    icon: "🚆",
+    title: "Penn Station → Brick Church",
+    subtitle: "NJ Transit Morris & Essex · 5:52 PM",
+    dot: "#4a9eff",
+    question: "Are there any current service alerts, delays or cancellations on the NJ Transit Morris and Essex Line (Morristown Line) today, particularly for evening rush service?",
+    alt: "Next NJ Transit trains from Penn Station to Brick Church after 5:52 PM if that train is delayed or cancelled.",
+  },
+  {
+    id: "i280-eve",
+    icon: "🚗",
+    title: "Brick Church → Livingston",
+    subtitle: "I-280 West · ~15–25 min (rush hour)",
+    dot: "#f5a623",
+    question: "What are current traffic conditions on I-280 West in New Jersey between East Orange / Brick Church area and Livingston during evening rush hour? Any accidents or major congestion?",
+    alt: "Alternate roads from Brick Church NJ Transit station to Livingston NJ if I-280 West is congested (e.g. Springfield Ave, Northfield Ave).",
+  },
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+
+let currentDir = 'am';
+let legData = {};
+let legLoading = {};
+let legErrors = {};
+let openLegs = {};
+let lastUpdated = null;
+
+// ── API Key ────────────────────────────────────────────────────────────────
+
+function getKey() { return localStorage.getItem('anthropic_api_key') || ''; }
+
+function saveKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  const err = document.getElementById('setup-error');
+  if (!key.startsWith('sk-ant-')) {
+    err.textContent = 'Key should start with sk-ant-… check and try again.';
+    return;
+  }
+  localStorage.setItem('anthropic_api_key', key);
+  err.textContent = '';
+  showDashboard();
+}
+
+function changeKey() {
+  localStorage.removeItem('anthropic_api_key');
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('setup').style.display = 'flex';
+  document.getElementById('api-key-input').value = '';
+}
+
+function showDashboard() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  renderTimeline();
+  startClock();
+}
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+
+function startClock() {
+  function tick() {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ── Direction ──────────────────────────────────────────────────────────────
+
+function setDir(dir) {
+  currentDir = dir;
+  legData = {}; legErrors = {}; legLoading = {}; openLegs = {};
+  lastUpdated = null;
+  document.getElementById('tab-am').className = 'dir-tab' + (dir==='am' ? ' active' : '');
+  document.getElementById('tab-pm').className = 'dir-tab' + (dir==='pm' ? ' active' : '');
+  document.getElementById('updated-time').textContent = '';
+  setOverall('idle', 'Press ⟳ to fetch live alerts');
+  renderTimeline();
+}
+
+function getLegs() { return currentDir === 'am' ? MORNING_LEGS : EVENING_LEGS; }
+
+// ── Render ─────────────────────────────────────────────────────────────────
+
+function renderTimeline() {
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  getLegs().forEach(leg => {
+    const wrap = document.createElement('div');
+    wrap.className = 'leg-wrap';
+    wrap.id = 'leg-' + leg.id;
+    wrap.innerHTML = buildLegHTML(leg);
+    tl.appendChild(wrap);
+  });
+}
+
+function buildLegHTML(leg) {
+  const data = legData[leg.id];
+  const loading = legLoading[leg.id];
+  const error = legErrors[leg.id];
+  const open = openLegs[leg.id] !== false; // default open
+  const status = data?.status || 'idle';
+
+  const dotStyle = `background:${leg.dot};box-shadow:0 0 6px ${leg.dot}44`;
+  const cardClass = data ? `status-${status}` : '';
+
+  // Badge
+  let badgeClass = 'badge-idle', badgeText = '–';
+  if (loading) { badgeClass = 'badge-loading'; badgeText = 'Checking…'; }
+  else if (error) { badgeClass = 'badge-alert'; badgeText = '✕ Error'; }
+  else if (data) {
+    const m = { ok:['badge-ok','✓ Clear'], warn:['badge-warn','⚠ Advisory'], alert:['badge-alert','✕ Alert'] };
+    [badgeClass, badgeText] = m[status] || ['badge-idle','–'];
+  }
+
+  // Pills
+  const pillsHTML = (leg.pills || []).map(p =>
+    `<div class="pill ${p==='S'?'pill-S':'pill-123'}">${p}</div>`
+  ).join('');
+
+  // Body content
+  let bodyHTML = '';
+  if (loading) {
+    bodyHTML = `<div class="leg-loading"><div class="dot-pulse"><span></span><span></span><span></span></div> Searching for alerts…</div>`;
+  } else if (error) {
+    bodyHTML = `<div class="leg-error">⚠ ${error}</div>`;
+  } else if (data) {
+    const dc = status;
+    const alertsHTML = (!data.alerts || !data.alerts.length)
+      ? '<div class="no-alerts">No active alerts for this leg.</div>'
+      : data.alerts.map(a => `<div class="alert-item ${a.severity}">
+          <span>${a.severity==='high'?'🔴':a.severity==='medium'?'🟡':'🟢'}</span>
+          <span>${a.text}</span>
+        </div>`).join('');
+
+    const altHTML = data.alternateRoutes
+      ? `<div class="alt-routes"><div class="alt-lbl">↪ Alternate Routes</div><div class="alt-text">${data.alternateRoutes}</div></div>`
+      : '';
+
+    bodyHTML = `
+      <div class="leg-meta">
+        <div><div class="meta-lbl">Status</div><div class="meta-val ${dc}">${data.summary || '–'}</div></div>
+        <div><div class="meta-lbl">Delay</div><div class="meta-val ${dc}">${data.estimatedDelay || '–'}</div></div>
+        <div><div class="meta-lbl">Est. Time</div><div class="meta-val">${data.travelTime || '–'}</div></div>
+      </div>
+      <div class="alerts-list">${alertsHTML}</div>
+      ${altHTML}
+      ${data.disclaimer ? `<div class="disclaimer">ℹ ${data.disclaimer}</div>` : ''}
+    `;
+  } else {
+    bodyHTML = `<div class="leg-idle">Press ⟳ to load alerts.</div>`;
+  }
+
+  return `
+    <div class="leg-dot" style="${dotStyle}"></div>
+    <div class="leg-card ${cardClass}">
+      <div class="leg-header" onclick="toggleLeg('${leg.id}')">
+        <div class="leg-icon">${leg.icon}</div>
+        <div class="leg-info">
+          <div class="leg-title">${leg.title}</div>
+          <div class="leg-sub">${leg.subtitle}</div>
+          ${pillsHTML ? `<div class="leg-pills">${pillsHTML}</div>` : ''}
+        </div>
+        <span class="leg-badge ${badgeClass}">${badgeText}</span>
+        <span class="leg-chevron ${open?'open':''}">▼</span>
+      </div>
+      ${open ? `<div class="leg-body">${bodyHTML}</div>` : ''}
+    </div>
+  `;
+}
+
+function updateLeg(legId) {
+  const leg = getLegs().find(l => l.id === legId);
+  if (!leg) return;
+  const wrap = document.getElementById('leg-' + legId);
+  if (wrap) wrap.innerHTML = buildLegHTML(leg);
+}
+
+function toggleLeg(legId) {
+  openLegs[legId] = openLegs[legId] === false ? true : false;
+  updateLeg(legId);
+}
+
+// ── Overall status ─────────────────────────────────────────────────────────
+
+function setOverall(type, msg) {
+  const el = document.getElementById('overall-bar');
+  el.className = 'overall-bar ' + type;
+  el.textContent = msg;
+}
+
+function updateOverall() {
+  const legs = getLegs();
+  const anyLoading = legs.some(l => legLoading[l.id]);
+  const allData = legs.map(l => legData[l.id]).filter(Boolean);
+  if (anyLoading) { setOverall('loading', '⟳ Fetching live conditions…'); return; }
+  if (!allData.length) { setOverall('idle', 'Press ⟳ to fetch live alerts'); return; }
+  if (allData.some(d => d.status === 'alert')) { setOverall('alert', '⚠ Active alerts on your route — check details below'); return; }
+  if (allData.some(d => d.status === 'warn')) { setOverall('warn', '⚡ Minor advisories — allow extra time'); return; }
+  setOverall('ok', '✓ All clear — your commute looks smooth');
+}
+
+// ── Fetch ──────────────────────────────────────────────────────────────────
+
+async function fetchLeg(leg) {
+  const key = getKey();
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+  const dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+
+  const prompt = `Today is ${dateStr}, current time is ${timeStr} Eastern Time.
+
+${leg.question}
+
+Respond with ONLY a JSON object — no markdown, no explanation, just raw JSON:
+{"status":"ok","summary":"one sentence","estimatedDelay":"On time","travelTime":"12 min","alerts":[],"alternateRoutes":"","disclaimer":"Based on typical conditions — verify at njtransit.com or mta.info"}
+
+Rules:
+- status: "ok" = normal, "warn" = minor issues, "alert" = major delays/cancellations
+- estimatedDelay: "On time" / "+N min" / "Major delays" / "Suspended"
+- alerts: array of {"severity":"low"|"medium"|"high","text":"description"}, or [] if none
+- alternateRoutes: "${leg.alt}" — only if status is warn or alert, otherwise ""
+- First character must be { and last must be }`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`API ${res.status}: ${txt.slice(0, 150)}`);
+  }
+
+  const data = await res.json();
+  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+  if (!text) throw new Error('Empty response');
+
+  const s = text.indexOf('{'), e = text.lastIndexOf('}');
+  if (s === -1 || e === -1) throw new Error(`No JSON found. Got: ${text.slice(0,80)}`);
+  return JSON.parse(text.slice(s, e + 1));
+}
+
+// ── Refresh all ────────────────────────────────────────────────────────────
+
+async function refreshAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+
+  const legs = getLegs();
+  legData = {}; legErrors = {};
+  legs.forEach(l => { legLoading[l.id] = true; updateLeg(l.id); });
+  updateOverall();
+
+  await Promise.all(legs.map(async leg => {
+    try {
+      const result = await fetchLeg(leg);
+      legData[leg.id] = result;
+    } catch(e) {
+      legErrors[leg.id] = e.message;
+    } finally {
+      legLoading[leg.id] = false;
+      updateLeg(leg.id);
+      updateOverall();
+    }
+  }));
+
+  lastUpdated = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+  document.getElementById('updated-time').textContent = `Updated ${lastUpdated}`;
+  btn.disabled = false;
+  btn.classList.remove('spinning');
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+
+window.addEventListener('DOMContentLoaded', () => {
+  const key = getKey();
+  if (key) {
+    showDashboard();
+  }
+  // Allow Enter key on setup
+  document.getElementById('api-key-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveKey();
+  });
+});
+</script>
+</body>
+</html>
