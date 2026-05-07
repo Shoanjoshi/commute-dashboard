@@ -675,7 +675,7 @@
 const MORNING_LEGS = [
   {
     id: "i280",
-    source: "511ny",
+    source: "googlemaps",
     sourceParams: { direction: "east" },
     icon: "🚗",
     title: "Livingston → Brick Church",
@@ -755,7 +755,7 @@ const EVENING_LEGS = [
   },
   {
     id: "i280-eve",
-    source: "511ny",
+    source: "googlemaps",
     sourceParams: { direction: "west" },
     icon: "🚗",
     title: "Brick Church → Livingston",
@@ -1113,7 +1113,48 @@ async function fetch511Traffic(direction) {
   };
 }
 
-// ── Claude fallback (NJT + 511NY when no worker URL set) ──────────────────
+// ── Google Maps live travel time ───────────────────────────────────────────
+
+async function fetchGoogleMapsTraffic(direction) {
+  const workerUrl = getWorkerUrl();
+  const res = await fetch(`${workerUrl}/traffic?direction=${direction}`);
+  if (!res.ok) throw new Error(`Proxy error ${res.status}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+
+  const el = data?.rows?.[0]?.elements?.[0];
+  if (!el || el.status !== 'OK') throw new Error('No traffic data returned');
+
+  const normalSec  = el.duration.value;
+  const trafficSec = el.duration_in_traffic?.value || normalSec;
+  const delaySec   = trafficSec - normalSec;
+  const delayMin   = Math.round(delaySec / 60);
+  const travelMin  = Math.round(trafficSec / 60);
+
+  let status = 'ok', estimatedDelay = 'Normal';
+  if (delayMin >= 10)     { status = 'alert'; estimatedDelay = `+${delayMin} min`; }
+  else if (delayMin >= 3) { status = 'warn';  estimatedDelay = `+${delayMin} min`; }
+
+  const alerts = [];
+  if (delayMin >= 3) {
+    alerts.push({
+      severity: delayMin >= 10 ? 'high' : 'medium',
+      text: `I-280 ${direction === 'east' ? 'East' : 'West'} is ${delayMin} min slower than usual`,
+    });
+  }
+
+  return {
+    status,
+    summary: delayMin < 3 ? 'Traffic flowing normally' : `${delayMin} min delay on I-280`,
+    estimatedDelay,
+    travelTime: `${travelMin} min`,
+    alerts,
+    alternateRoutes: '',
+    disclaimer: 'Live traffic · Google Maps Distance Matrix',
+  };
+}
+
+// ── Claude fallback (NJT + traffic when no worker URL set) ─────────────────
 
 async function fetchFromClaude(leg) {
   const key = getKey();
@@ -1161,8 +1202,8 @@ async function fetchLeg(leg) {
     case 'njt':
       return getWorkerUrl() ? fetchNJTrain(leg.sourceParams.station, leg.sourceParams.time)
                             : fetchFromClaude(leg);
-    case '511ny':
-      return getWorkerUrl() ? fetch511Traffic(leg.sourceParams.direction)
+    case 'googlemaps':
+      return getWorkerUrl() ? fetchGoogleMapsTraffic(leg.sourceParams.direction)
                             : fetchFromClaude(leg);
     default:
       return fetchFromClaude(leg);

@@ -1,8 +1,8 @@
 // Commute Dashboard — Cloudflare Worker proxy
 // Secrets required (set in Cloudflare dashboard → Worker → Settings → Variables):
-//   NJT_USERNAME  — NJ Transit API username (from datasource.njtransit.com)
-//   NJT_PASSWORD  — NJ Transit API password
-//   NY511_KEY     — 511NY API key (from 511ny.org/developers)
+//   NJT_USERNAME     — NJ Transit API username (from datasource.njtransit.com)
+//   NJT_PASSWORD     — NJ Transit API password
+//   GOOGLE_MAPS_KEY  — Google Maps Distance Matrix API key (from console.cloud.google.com)
 
 const ALLOWED_ORIGIN = 'https://shoanjoshi.github.io';
 
@@ -45,13 +45,23 @@ export default {
         return json(await res.json());
       }
 
-      // ── 511NY traffic events (covers I-280) ─────────────────────────────
-      // GET /traffic
+      // ── Google Maps Distance Matrix (I-280 live travel time) ────────────
+      // GET /traffic?direction=east   or   /traffic?direction=west
       if (url.pathname === '/traffic') {
-        const res = await fetch(
-          `https://511ny.org/api/getevents?key=${env.NY511_KEY}&format=json`
-        );
-        if (!res.ok) return json({ error: `511NY API ${res.status}` }, 502);
+        const direction = url.searchParams.get('direction') || 'east';
+        const [origin, destination] = direction === 'east'
+          ? ['Livingston, NJ 07039', 'Brick Church Station, East Orange, NJ 07017']
+          : ['Brick Church Station, East Orange, NJ 07017', 'Livingston, NJ 07039'];
+
+        const gmUrl = 'https://maps.googleapis.com/maps/api/distancematrix/json' +
+          `?origins=${encodeURIComponent(origin)}` +
+          `&destinations=${encodeURIComponent(destination)}` +
+          `&departure_time=now` +
+          `&traffic_model=best_guess` +
+          `&key=${env.GOOGLE_MAPS_KEY}`;
+
+        const res = await fetch(gmUrl);
+        if (!res.ok) return json({ error: `Google Maps API ${res.status}` }, 502);
         return json(await res.json());
       }
 
