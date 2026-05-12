@@ -1123,7 +1123,7 @@ async function fetchGoogleMapsTraffic(direction) {
   if (data.error) throw new Error(data.error);
 
   const el = data?.rows?.[0]?.elements?.[0];
-  if (!el || el.status !== 'OK') throw new Error('No traffic data returned');
+  if (!el || el.status !== 'OK') throw new Error(`Google Maps element status: ${el?.status || 'no data'} — check API key restrictions`);
 
   const normalSec  = el.duration.value;
   const trafficSec = el.duration_in_traffic?.value || normalSec;

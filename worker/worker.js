@@ -41,8 +41,13 @@ export default {
           `&station=${encodeURIComponent(station)}`;
 
         const res = await fetch(njtUrl);
-        if (!res.ok) return json({ error: `NJT API ${res.status}` }, 502);
-        return json(await res.json());
+        const text = await res.text();
+        if (!res.ok) return json({ error: `NJT API ${res.status}: ${text.slice(0, 200)}` }, 502);
+        try {
+          return json(JSON.parse(text));
+        } catch {
+          return json({ error: `NJT returned non-JSON: ${text.slice(0, 200)}` }, 502);
+        }
       }
 
       // ── Google Maps Distance Matrix (I-280 live travel time) ────────────
@@ -61,8 +66,12 @@ export default {
           `&key=${env.GOOGLE_MAPS_KEY}`;
 
         const res = await fetch(gmUrl);
-        if (!res.ok) return json({ error: `Google Maps API ${res.status}` }, 502);
-        return json(await res.json());
+        const data = await res.json();
+        // Surface Google's error status so we can debug
+        if (!res.ok || data.status === 'REQUEST_DENIED' || data.status === 'INVALID_REQUEST') {
+          return json({ error: `Google Maps: ${data.status} — ${data.error_message || 'check API key'}` }, 502);
+        }
+        return json(data);
       }
 
       return new Response('not found', { status: 404, headers: cors });
