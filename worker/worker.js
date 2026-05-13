@@ -19,7 +19,7 @@ function json(data, status = 200) {
   });
 }
 
-const NJT_BASE = 'https://raildata.njtransit.com/api/TrainData';
+const NJT_BASE = 'https://testraildata.njtransit.com/api/TrainData';
 // Cache key for the NJT auth token (fake URL, only used as cache key)
 const TOKEN_CACHE_URL = 'https://njt-token.internal/token';
 
