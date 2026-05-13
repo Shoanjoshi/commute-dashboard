@@ -1026,7 +1026,7 @@ async function fetchNJTRss() {
   if (!res.ok || data.error) throw new Error(data.error || `Proxy error ${res.status}`);
 
   const alerts = (data.alerts || []).map(a => {
-    const text = a.title || a.description;
+    const text = a.description || a.title;
     const isCancelled = /cancel/i.test(text);
     const isDelay = /delay|late|slow/i.test(text);
     return {
