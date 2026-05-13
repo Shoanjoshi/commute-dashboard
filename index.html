@@ -1019,60 +1019,33 @@ async function fetchMTAAlerts(routes) {
   };
 }
 
-async function fetchNJTrain(station, targetTime) {
+async function fetchNJTRss() {
   const workerUrl = getWorkerUrl();
-  const res = await fetch(`${workerUrl}/njt?station=${encodeURIComponent(station)}`);
+  const res = await fetch(`${workerUrl}/njt-rss`);
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || `Proxy error ${res.status}`);
 
-  const raw = data?.ITEMS?.ITEM;
-  const items = Array.isArray(raw) ? raw : (raw ? [raw] : []);
-
-  const train = items.find(item =>
-    (item.SCHED_DEP_DATE || '').substring(0, 5) === targetTime
-  );
-
-  if (!train) {
-    const next = items.slice(0, 3)
-      .map(t => `${(t.SCHED_DEP_DATE||'').substring(0,5)} → ${t.DESTINATION} (${t.STATUS})`)
-      .join(' · ');
+  const alerts = (data.alerts || []).map(a => {
+    const text = a.title || a.description;
+    const isCancelled = /cancel/i.test(text);
+    const isDelay = /delay|late|slow/i.test(text);
     return {
-      status: 'warn',
-      summary: 'Train not in schedule',
-      estimatedDelay: 'Check NJT app',
-      travelTime: '—',
-      alerts: [{ severity: 'medium', text: next ? `Nearby departures: ${next}` : 'No schedule data' }],
-      alternateRoutes: '',
-      disclaimer: 'Live data · NJ Transit API',
+      severity: isCancelled ? 'high' : isDelay ? 'medium' : 'low',
+      text,
     };
-  }
+  });
 
-  const secLate  = parseInt(train.SEC_LATE || '0', 10);
-  const minLate  = Math.ceil(secLate / 60);
-  const cancelled = /cancel/i.test(train.STATUS || '');
-
-  let status = 'ok', estimatedDelay = 'On time';
-  if (cancelled)       { status = 'alert'; estimatedDelay = 'Cancelled'; }
-  else if (minLate >= 10) { status = 'alert'; estimatedDelay = `+${minLate} min`; }
-  else if (minLate > 0)   { status = 'warn';  estimatedDelay = `+${minLate} min`; }
-
-  const alerts = [];
-  if (cancelled) {
-    alerts.push({ severity: 'high', text: `Train ${train.TRAIN_ID} is cancelled` });
-  } else if (minLate > 0) {
-    alerts.push({ severity: minLate >= 10 ? 'high' : 'medium',
-      text: `Train ${train.TRAIN_ID} running ${minLate} min late (${train.STATUS})` });
-  }
-  if (train.TRACK) alerts.push({ severity: 'low', text: `Departing Track ${train.TRACK}` });
+  const hasHigh = alerts.some(a => a.severity === 'high');
+  const hasMed  = alerts.some(a => a.severity === 'medium');
 
   return {
-    status,
-    summary: cancelled ? 'Cancelled' : minLate === 0 ? 'On time' : `${minLate} min late`,
-    estimatedDelay,
+    status: hasHigh ? 'alert' : hasMed ? 'warn' : 'ok',
+    summary: alerts.length === 0 ? 'No active advisories' : `${alerts.length} service advisor${alerts.length !== 1 ? 'ies' : 'y'}`,
+    estimatedDelay: hasHigh ? 'Check NJT app' : hasMed ? 'Possible delays' : 'On time',
     travelTime: '—',
-    alerts,
+    alerts: alerts.length ? alerts : [{ severity: 'low', text: 'No active advisories for Morris & Essex Line' }],
     alternateRoutes: '',
-    disclaimer: `Live data · NJ Transit API · Train ${train.TRAIN_ID}`,
+    disclaimer: 'Live advisories · NJ Transit RSS',
   };
 }
 
@@ -1198,8 +1171,7 @@ async function fetchLeg(leg) {
     case 'mta':
       return fetchMTAAlerts(leg.sourceParams.routes);
     case 'njt':
-      return getWorkerUrl() ? fetchNJTrain(leg.sourceParams.station, leg.sourceParams.time)
-                            : fetchFromClaude(leg);
+      return getWorkerUrl() ? fetchNJTRss() : fetchFromClaude(leg);
     case 'googlemaps':
       return getWorkerUrl() ? fetchGoogleMapsTraffic(leg.sourceParams.direction)
                             : fetchFromClaude(leg);
