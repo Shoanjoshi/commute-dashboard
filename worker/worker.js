@@ -5,18 +5,26 @@
 //   NJT_USERNAME     — NJ Transit API username (from developer.njtransit.com)
 //   NJT_PASSWORD     — NJ Transit API password
 
-const ALLOWED_ORIGIN = 'https://shoanjoshi.github.io';
+const ALLOWED_ORIGINS = [
+  'https://shoanjoshi.github.io',
+  'http://localhost',
+  'http://127.0.0.1',
+];
 
-const cors = {
-  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+function getCorsHeaders(request) {
+  const origin = request.headers.get('Origin') || '';
+  const allowed = ALLOWED_ORIGINS.some(o => origin === o || origin.startsWith(o + ':'));
+  return {
+    'Access-Control-Allow-Origin': allowed ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+}
 
-function json(data, status = 200) {
+function json(data, status = 200, corsHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...cors, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -54,6 +62,8 @@ function stripHtml(str) {
 
 export default {
   async fetch(request, env) {
+    const cors = getCorsHeaders(request);
+
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: cors });
     }
@@ -67,7 +77,7 @@ export default {
         const res = await fetch(NJT_RSS_URL, {
           headers: { 'User-Agent': 'CommuteDashboard/1.0' },
         });
-        if (!res.ok) return json({ error: `NJT RSS ${res.status}` }, 502);
+        if (!res.ok) return json({ error: `NJT RSS ${res.status}` }, 502, cors);
         const xml = await res.text();
         const all = parseRSS(xml);
         const relevant = all.filter(isRelevant).map(item => ({
@@ -75,12 +85,16 @@ export default {
           description: stripHtml(item.description),
           pubDate: item.pubDate,
         }));
-        return json({ alerts: relevant, total: all.length });
+        return json({ alerts: relevant, total: all.length }, 200, cors);
       }
 
       // ── Google Maps Distance Matrix (I-280 live travel time) ────────────
       // GET /traffic?direction=east   or   /traffic?direction=west
       if (url.pathname === '/traffic') {
+        if (!env.GOOGLE_MAPS_KEY) {
+          return json({ error: 'GOOGLE_MAPS_KEY secret not set in Cloudflare Worker' }, 500, cors);
+        }
+
         const direction = url.searchParams.get('direction') || 'east';
         const [origin, destination] = direction === 'east'
           ? ['Livingston, NJ 07039', 'Brick Church Station, East Orange, NJ 07017']
@@ -96,14 +110,14 @@ export default {
         const res = await fetch(gmUrl);
         const data = await res.json();
         if (!res.ok || data.status === 'REQUEST_DENIED' || data.status === 'INVALID_REQUEST') {
-          return json({ error: `Google Maps: ${data.status} — ${data.error_message || 'check API key'}` }, 502);
+          return json({ error: `Google Maps: ${data.status} — ${data.error_message || 'check API key'}` }, 502, cors);
         }
-        return json(data);
+        return json(data, 200, cors);
       }
 
       return new Response('not found', { status: 404, headers: cors });
     } catch (e) {
-      return json({ error: e.message }, 500);
+      return json({ error: e.message }, 500, cors);
     }
   },
 };
