@@ -1022,9 +1022,8 @@ async function fetchMTAAlerts(routes) {
 async function fetchNJTrain(station, targetTime) {
   const workerUrl = getWorkerUrl();
   const res = await fetch(`${workerUrl}/njt?station=${encodeURIComponent(station)}`);
-  if (!res.ok) throw new Error(`Proxy error ${res.status}`);
   const data = await res.json();
-  if (data.error) throw new Error(data.error);
+  if (!res.ok || data.error) throw new Error(data.error || `Proxy error ${res.status}`);
 
   const raw = data?.ITEMS?.ITEM;
   const items = Array.isArray(raw) ? raw : (raw ? [raw] : []);
@@ -1118,9 +1117,8 @@ async function fetch511Traffic(direction) {
 async function fetchGoogleMapsTraffic(direction) {
   const workerUrl = getWorkerUrl();
   const res = await fetch(`${workerUrl}/traffic?direction=${direction}`);
-  if (!res.ok) throw new Error(`Proxy error ${res.status}`);
   const data = await res.json();
-  if (data.error) throw new Error(data.error);
+  if (!res.ok || data.error) throw new Error(data.error || `Proxy error ${res.status}`);
 
   const el = data?.rows?.[0]?.elements?.[0];
   if (!el || el.status !== 'OK') throw new Error(`Google Maps element status: ${el?.status || 'no data'} — check API key restrictions`);
