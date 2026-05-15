@@ -1,7 +1,6 @@
 // Commute Dashboard — Cloudflare Worker proxy
 // Secrets required (set in Cloudflare dashboard → Worker → Settings → Variables):
 //   GOOGLE_MAPS_KEY  — Google Maps Distance Matrix API key
-// Optional (for future real-time API):
 //   NJT_USERNAME     — NJ Transit API username (from developer.njtransit.com)
 //   NJT_PASSWORD     — NJ Transit API password
 
@@ -28,12 +27,59 @@ function json(data, status = 200, corsHeaders = {}) {
   });
 }
 
-// ── NJ Transit RSS feed parser ───────────────────────────────────────────────
-// GET /njt-rss?line=morris   — returns service alerts for Morris & Essex line
+// ── NJ Transit V2 API ────────────────────────────────────────────────────────
+// Docs: https://raildata.njtransit.com
+// GET /njt?station=BK  — departures from Brick Church
+// GET /njt?station=NY  — departures from NY Penn Station
+
+const NJT_BASE = 'https://raildata.njtransit.com/api/TrainData';
+const NJT_TOKEN_CACHE_KEY = 'https://njt-token.internal/v1';
+
+async function getNJTToken(env) {
+  const cache = caches.default;
+  const cached = await cache.match(NJT_TOKEN_CACHE_KEY);
+  if (cached) {
+    const { token } = await cached.json();
+    return token;
+  }
+
+  const form = new FormData();
+  form.append('username', env.NJT_USERNAME);
+  form.append('password', env.NJT_PASSWORD);
+
+  const res = await fetch(`${NJT_BASE}/getToken`, { method: 'POST', body: form });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(`NJT getToken parse error: ${text.slice(0, 200)}`); }
+
+  if (!data || data.errorMessage) throw new Error(`NJT getToken: ${data?.errorMessage || 'empty response'}`);
+  if (data.Authenticated !== 'True' || !data.UserToken) throw new Error(`NJT auth failed — check credentials. Response: ${text.slice(0, 200)}`);
+
+  await cache.put(NJT_TOKEN_CACHE_KEY, new Response(JSON.stringify({ token: data.UserToken }), {
+    headers: { 'Cache-Control': 'max-age=82800', 'Content-Type': 'application/json' },
+  }));
+  return data.UserToken;
+}
+
+async function getNJTDepartures(env, station) {
+  const token = await getNJTToken(env);
+  const form = new FormData();
+  form.append('token', token);
+  form.append('station', station);
+
+  const res = await fetch(`${NJT_BASE}/getTrainSchedule`, { method: 'POST', body: form });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`NJT getTrainSchedule ${res.status}: ${text.slice(0, 200)}`);
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(`NJT schedule parse error: ${text.slice(0, 200)}`); }
+  return Array.isArray(data) ? data : (data.ITEMS || data.items || []);
+}
+
+// ── NJ Transit RSS (service alerts fallback) ─────────────────────────────────
+// GET /njt-rss — returns line-level service alerts from RSS
 
 const NJT_RSS_URL = 'https://www.njtransit.com/rss/RailAdvisories_feed.xml';
-
-const LINE_KEYWORDS = ['morris', 'essex', 'morristown', 'montclair'];
+const LINE_KEYWORDS = ['morris', 'essex', 'morristown', 'montclair', 'midtown direct'];
 
 function parseRSS(xml) {
   const items = [];
@@ -71,6 +117,21 @@ export default {
     const url = new URL(request.url);
 
     try {
+      // ── NJ Transit V2 API — real-time departures ──────────────────────────
+      // GET /njt?station=BK  or  /njt?station=NY
+      if (url.pathname === '/njt') {
+        if (!env.NJT_USERNAME || !env.NJT_PASSWORD) {
+          return json({ error: 'NJT_USERNAME / NJT_PASSWORD secrets not set in Cloudflare Worker' }, 500, cors);
+        }
+        const station = url.searchParams.get('station') || 'BK';
+        try {
+          const items = await getNJTDepartures(env, station);
+          return json({ items }, 200, cors);
+        } catch (e) {
+          return json({ error: e.message }, 502, cors);
+        }
+      }
+
       // ── NJ Transit RSS alerts (Morris & Essex line) ──────────────────────
       // GET /njt-rss
       if (url.pathname === '/njt-rss') {
