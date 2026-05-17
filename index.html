@@ -687,7 +687,7 @@ const MORNING_LEGS = [
   {
     id: "njt",
     source: "njt",
-    sourceParams: { station: "BRICK CHURCH", time: "07:44" },
+    sourceParams: { station: "BU", time: "07:44" },
     icon: "🚆",
     title: "Brick Church → Penn Station",
     subtitle: "NJ Transit Morris & Essex · 7:44 AM",
@@ -911,6 +911,7 @@ function buildLegHTML(leg) {
         <div><div class="meta-lbl">Status</div><div class="meta-val ${dc}">${data.summary || '–'}</div></div>
         <div><div class="meta-lbl">Delay</div><div class="meta-val ${dc}">${data.estimatedDelay || '–'}</div></div>
         <div><div class="meta-lbl">Est. Time</div><div class="meta-val">${data.travelTime || '–'}</div></div>
+        ${data.track ? `<div><div class="meta-lbl">Track</div><div class="meta-val">${data.track}</div></div>` : ''}
       </div>
       <div class="alerts-list">${alertsHTML}</div>
       ${altHTML}
@@ -1049,6 +1050,63 @@ async function fetchNJTRss() {
   };
 }
 
+async function fetchNJTSchedule(station, targetTime) {
+  const workerUrl = getWorkerUrl();
+  const res = await fetch(`${workerUrl}/njt?station=${station}`);
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || `Proxy error ${res.status}`);
+
+  const items = data.items || [];
+
+  // Find the target train by matching HH:MM in scheduled departure "MM/DD/YYYY HH:MM:SS"
+  const target = items.find(item => {
+    const timePart = (item.SCHED_DEP_DATE || '').split(' ')[1] || '';
+    return timePart.slice(0, 5) === targetTime;
+  });
+
+  const isCancelled = target && /cancel/i.test(target.STATUS || '');
+  const secLate = target ? parseInt(target.SEC_LATE || '0', 10) : 0;
+  const minLate = Math.round(secLate / 60);
+
+  let status = 'ok', estimatedDelay = 'On time';
+  if (!target) {
+    status = 'warn'; estimatedDelay = 'Not found';
+  } else if (isCancelled) {
+    status = 'alert'; estimatedDelay = 'Cancelled';
+  } else if (minLate >= 10) {
+    status = 'alert'; estimatedDelay = `+${minLate} min`;
+  } else if (minLate >= 3) {
+    status = 'warn'; estimatedDelay = `+${minLate} min`;
+  }
+
+  const alerts = [];
+  if (!target) {
+    alerts.push({ severity: 'medium', text: `${targetTime} train not found in departure board — check NJT app` });
+  } else if (isCancelled) {
+    alerts.push({ severity: 'high', text: `${targetTime} train to ${target.DESTINATION || 'destination'} is CANCELLED` });
+  } else if (minLate >= 3) {
+    alerts.push({ severity: minLate >= 10 ? 'high' : 'medium', text: `${targetTime} train is running ${minLate} min late` });
+  }
+
+  const track = target?.TRACK?.trim() || '';
+  const rawStatus = target?.STATUS?.trim() || '';
+  const summaryText = isCancelled ? 'Cancelled'
+    : !target ? 'Not found'
+    : rawStatus && rawStatus !== ' ' ? rawStatus
+    : 'Scheduled';
+
+  return {
+    status,
+    summary: summaryText,
+    estimatedDelay,
+    travelTime: target ? `→ ${target.DESTINATION || 'Penn Station'}` : '—',
+    track: track || null,
+    alerts: alerts.length ? alerts : [{ severity: 'low', text: `${targetTime} train on time — no issues reported` }],
+    alternateRoutes: '',
+    disclaimer: `Live departures · NJ Transit V2 · Track ${track || '—'} · ${items.length} trains shown`,
+  };
+}
+
 async function fetch511Traffic(direction) {
   const workerUrl = getWorkerUrl();
   const res = await fetch(`${workerUrl}/traffic`);
@@ -1171,7 +1229,9 @@ async function fetchLeg(leg) {
     case 'mta':
       return fetchMTAAlerts(leg.sourceParams.routes);
     case 'njt':
-      return getWorkerUrl() ? fetchNJTRss() : fetchFromClaude(leg);
+      return getWorkerUrl()
+        ? fetchNJTSchedule(leg.sourceParams.station, leg.sourceParams.time)
+        : fetchFromClaude(leg);
     case 'googlemaps':
       return getWorkerUrl() ? fetchGoogleMapsTraffic(leg.sourceParams.direction)
                             : fetchFromClaude(leg);
