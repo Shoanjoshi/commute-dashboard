@@ -914,6 +914,17 @@ function buildLegHTML(leg) {
         ${data.track ? `<div><div class="meta-lbl">Track</div><div class="meta-val">${data.track}</div></div>` : ''}
       </div>
       <div class="alerts-list">${alertsHTML}</div>
+      ${data.lineAlerts != null ? `
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <div class="meta-lbl" style="margin-bottom:6px;">M&amp;E Line Advisories</div>
+        ${data.lineAlerts.length === 0
+          ? '<div class="no-alerts">No active advisories for Morris &amp; Essex Line.</div>'
+          : data.lineAlerts.map(a => `<div class="alert-item ${a.severity}" style="margin-bottom:4px;">
+              <span>${a.severity==='high'?'🔴':a.severity==='medium'?'🟡':'🟢'}</span>
+              <span>${a.text}</span>
+            </div>`).join('')
+        }
+      </div>` : ''}
       ${altHTML}
       ${data.disclaimer ? `<div class="disclaimer">ℹ ${data.disclaimer}</div>` : ''}
     `;
@@ -1052,13 +1063,17 @@ async function fetchNJTRss() {
 
 async function fetchNJTSchedule(station, targetTime) {
   const workerUrl = getWorkerUrl();
-  const res = await fetch(`${workerUrl}/njt?station=${station}`);
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || `Proxy error ${res.status}`);
+
+  const [schedRes, rssRes] = await Promise.all([
+    fetch(`${workerUrl}/njt?station=${station}`),
+    fetch(`${workerUrl}/njt-rss`).catch(() => null),
+  ]);
+
+  const data = await schedRes.json();
+  if (!schedRes.ok || data.error) throw new Error(data.error || `Proxy error ${schedRes.status}`);
 
   const items = data.items || [];
 
-  // Find the target train by matching HH:MM in scheduled departure "MM/DD/YYYY HH:MM:SS"
   const target = items.find(item => {
     const timePart = (item.SCHED_DEP_DATE || '').split(' ')[1] || '';
     return timePart.slice(0, 5) === targetTime;
@@ -1088,6 +1103,28 @@ async function fetchNJTSchedule(station, targetTime) {
     alerts.push({ severity: minLate >= 10 ? 'high' : 'medium', text: `${targetTime} train is running ${minLate} min late` });
   }
 
+  // Line-level alerts from RSS (already filtered to M&E/Morristown/Montclair/Midtown Direct by worker)
+  let lineAlerts = null;
+  if (rssRes?.ok) {
+    const rssData = await rssRes.json().catch(() => null);
+    if (rssData && !rssData.error) {
+      lineAlerts = (rssData.alerts || [])
+        .filter(a => {
+          const t = (a.description || a.title || '').toLowerCase();
+          if (/elevator|escalator/.test(t)) return false;
+          if (/weekend|saturday|sunday/.test(t) && !/monday|tuesday|wednesday|thursday|friday|weekday/.test(t)) return false;
+          return true;
+        })
+        .map(a => {
+          const text = a.description || a.title;
+          return {
+            severity: /cancel/i.test(text) ? 'high' : /delay|late|slow/i.test(text) ? 'medium' : 'low',
+            text,
+          };
+        });
+    }
+  }
+
   const track = target?.TRACK?.trim() || '';
   const rawStatus = target?.STATUS?.trim() || '';
   const summaryText = isCancelled ? 'Cancelled'
@@ -1102,6 +1139,7 @@ async function fetchNJTSchedule(station, targetTime) {
     travelTime: target ? `→ ${target.DESTINATION || 'Penn Station'}` : '—',
     track: track || null,
     alerts: alerts.length ? alerts : [{ severity: 'low', text: `${targetTime} train on time — no issues reported` }],
+    lineAlerts,
     alternateRoutes: '',
     disclaimer: `Live departures · NJ Transit V2 · Track ${track || '—'} · ${items.length} trains shown`,
   };
