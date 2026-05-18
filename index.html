@@ -670,6 +670,16 @@
 </div>
 
 <script>
+// Force fresh fetch once per day — defeats Safari bookmark caching
+(function() {
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const u = new URL(location.href);
+  if (u.searchParams.get('v') !== today) {
+    u.searchParams.set('v', today);
+    location.replace(u.toString());
+  }
+})();
+
 // ── Route definitions ──────────────────────────────────────────────────────
 
 const MORNING_LEGS = [
