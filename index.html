@@ -1108,13 +1108,20 @@ async function fetchNJTSchedule(station, targetTime) {
   if (rssRes?.ok) {
     const rssData = await rssRes.json().catch(() => null);
     if (rssData && !rssData.error) {
-      lineAlerts = (rssData.alerts || []).map(a => {
-        const text = a.description || a.title;
-        return {
-          severity: /cancel/i.test(text) ? 'high' : /delay|late|slow/i.test(text) ? 'medium' : 'low',
-          text,
-        };
-      });
+      lineAlerts = (rssData.alerts || [])
+        .filter(a => {
+          const t = (a.description || a.title || '').toLowerCase();
+          if (/elevator|escalator/.test(t)) return false;
+          if (/weekend|saturday|sunday/.test(t) && !/monday|tuesday|wednesday|thursday|friday|weekday/.test(t)) return false;
+          return true;
+        })
+        .map(a => {
+          const text = a.description || a.title;
+          return {
+            severity: /cancel/i.test(text) ? 'high' : /delay|late|slow/i.test(text) ? 'medium' : 'low',
+            text,
+          };
+        });
     }
   }
 
