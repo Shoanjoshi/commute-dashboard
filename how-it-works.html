@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Your Commute Dashboard Works</title>
+<style>
+  body {
+    margin: 0;
+    background: #f1f5f9;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 48px;
+    min-height: 100vh;
+  }
+</style>
+</head>
+<body>
+<svg width="860" height="710" viewBox="0 0 860 710" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+    <marker id="arr-dash" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#cbd5e1"/>
+    </marker>
+    <filter id="sh">
+      <feDropShadow dx="0" dy="2" stdDeviation="5" flood-color="#0000001a"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="860" height="710" fill="#f1f5f9" rx="20"/>
+
+  <!-- ══ TITLE ══════════════════════════════════════════════════════════════ -->
+  <text x="430" y="42" text-anchor="middle"
+        font-size="19" font-weight="700" fill="#0f172a"
+        font-family="-apple-system,sans-serif">
+    How Your Commute Dashboard Works
+  </text>
+
+  <!-- ══ YOU ════════════════════════════════════════════════════════════════ -->
+  <rect x="315" y="58" width="230" height="64" rx="16" fill="#3b82f6" filter="url(#sh)"/>
+  <text x="430" y="84" text-anchor="middle" font-size="22" font-family="sans-serif">📱</text>
+  <text x="430" y="104" text-anchor="middle" font-size="12" font-weight="600" fill="white"
+        font-family="-apple-system,sans-serif">
+    You open the dashboard
+  </text>
+  <text x="430" y="118" text-anchor="middle" font-size="10.5" fill="#bfdbfe"
+        font-family="-apple-system,sans-serif">
+    (bookmark on your phone or browser)
+  </text>
+
+  <!-- Arrow: YOU → DASHBOARD -->
+  <line x1="430" y1="123" x2="430" y2="151" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+
+  <!-- ══ DASHBOARD ══════════════════════════════════════════════════════════ -->
+  <rect x="145" y="155" width="570" height="68" rx="16" fill="#6366f1" filter="url(#sh)"/>
+  <text x="430" y="182" text-anchor="middle" font-size="16" font-weight="700" fill="white"
+        font-family="-apple-system,sans-serif">
+    📊  Your Commute Dashboard
+  </text>
+  <text x="430" y="203" text-anchor="middle" font-size="11.5" fill="#c7d2fe"
+        font-family="-apple-system,sans-serif">
+    One web page — pulls everything together in real time
+  </text>
+
+  <!-- Arrow: DASHBOARD → WORKER -->
+  <line x1="430" y1="223" x2="430" y2="254" stroke="#94a3b8" stroke-width="2" marker-end="url(#arr)"/>
+  <rect x="340" y="228" width="138" height="18" rx="4" fill="#f1f5f9"/>
+  <text x="409" y="241" text-anchor="middle" font-size="10" fill="#64748b"
+        font-family="-apple-system,sans-serif">
+    requests live data
+  </text>
+
+  <!-- ══ CLOUDFLARE WORKER ═══════════════════════════════════════════════════ -->
+  <rect x="185" y="258" width="490" height="70" rx="16" fill="#f59e0b" filter="url(#sh)"/>
+  <text x="430" y="284" text-anchor="middle" font-size="15" font-weight="700" fill="white"
+        font-family="-apple-system,sans-serif">
+    ☁️  Secure Data Relay
+  </text>
+  <text x="430" y="304" text-anchor="middle" font-size="11" fill="#fef3c7"
+        font-family="-apple-system,sans-serif">
+    Runs invisibly in the cloud · Contacts each data source on your behalf
+  </text>
+  <text x="430" y="320" text-anchor="middle" font-size="10" fill="#fde68a"
+        font-family="-apple-system,sans-serif">
+    (keeps your API keys private &amp; secure)
+  </text>
+
+  <!-- 4 fan-out arrows from Worker to sources -->
+  <!-- Source centers: 120, 307, 553, 740  (top of sources at y=390) -->
+  <line x1="430" y1="328" x2="121"  y2="388" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-dash)"/>
+  <line x1="430" y1="328" x2="308"  y2="388" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-dash)"/>
+  <line x1="430" y1="328" x2="552"  y2="388" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-dash)"/>
+  <line x1="430" y1="328" x2="739"  y2="388" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-dash)"/>
+
+  <!-- ══ DATA SOURCES (4 boxes) ═════════════════════════════════════════════ -->
+  <!-- Box width=184, gap=17. Start x=29. Centers: 121, 322, 523, 724 -->
+
+  <!-- 1. NJT Departures -->
+  <rect x="29" y="392" width="184" height="100" rx="14" fill="#10b981" filter="url(#sh)"/>
+  <text x="121" y="420" text-anchor="middle" font-size="26" font-family="sans-serif">🚆</text>
+  <text x="121" y="443" text-anchor="middle" font-size="12" font-weight="700" fill="white"
+        font-family="-apple-system,sans-serif">NJ Transit</text>
+  <text x="121" y="460" text-anchor="middle" font-size="10.5" fill="#a7f3d0"
+        font-family="-apple-system,sans-serif">Train times, track no.,</text>
+  <text x="121" y="475" text-anchor="middle" font-size="10.5" fill="#a7f3d0"
+        font-family="-apple-system,sans-serif">delays &amp; status</text>
+
+  <!-- 2. NJT Alerts -->
+  <rect x="230" y="392" width="184" height="100" rx="14" fill="#f97316" filter="url(#sh)"/>
+  <text x="322" y="420" text-anchor="middle" font-size="26" font-family="sans-serif">⚠️</text>
+  <text x="322" y="443" text-anchor="middle" font-size="12" font-weight="700" fill="white"
+        font-family="-apple-system,sans-serif">Service Alerts</text>
+  <text x="322" y="460" text-anchor="middle" font-size="10.5" fill="#fed7aa"
+        font-family="-apple-system,sans-serif">M&amp;E line advisories,</text>
+  <text x="322" y="475" text-anchor="middle" font-size="10.5" fill="#fed7aa"
+        font-family="-apple-system,sans-serif">disruptions &amp; notices</text>
+
+  <!-- 3. Google Maps -->
+  <rect x="460" y="392" width="184" height="100" rx="14" fill="#3b82f6" filter="url(#sh)"/>
+  <text x="552" y="420" text-anchor="middle" font-size="26" font-family="sans-serif">🚗</text>
+  <text x="552" y="443" text-anchor="middle" font-size="12" font-weight="700" fill="white"
+        font-family="-apple-system,sans-serif">Google Maps</text>
+  <text x="552" y="460" text-anchor="middle" font-size="10.5" fill="#bfdbfe"
+        font-family="-apple-system,sans-serif">Live drive time</text>
+  <text x="552" y="475" text-anchor="middle" font-size="10.5" fill="#bfdbfe"
+        font-family="-apple-system,sans-serif">to Brick Church station</text>
+
+  <!-- 4. MTA -->
+  <rect x="647" y="392" width="184" height="100" rx="14" fill="#8b5cf6" filter="url(#sh)"/>
+  <text x="739" y="420" text-anchor="middle" font-size="26" font-family="sans-serif">🚇</text>
+  <text x="739" y="443" text-anchor="middle" font-size="12" font-weight="700" fill="white"
+        font-family="-apple-system,sans-serif">NYC Subway (MTA)</text>
+  <text x="739" y="460" text-anchor="middle" font-size="10.5" fill="#ddd6fe"
+        font-family="-apple-system,sans-serif">Service alerts for</text>
+  <text x="739" y="475" text-anchor="middle" font-size="10.5" fill="#ddd6fe"
+        font-family="-apple-system,sans-serif">your subway lines</text>
+
+  <!-- Return label -->
+  <text x="430" y="516" text-anchor="middle" font-size="11" fill="#64748b"
+        font-family="-apple-system,sans-serif">
+    ↑  All results flow back to your dashboard automatically  ↑
+  </text>
+
+  <!-- ══ WHAT YOU SEE ════════════════════════════════════════════════════════ -->
+  <rect x="30" y="528" width="800" height="148" rx="16" fill="white" stroke="#e2e8f0"
+        stroke-width="1.5" filter="url(#sh)"/>
+
+  <text x="430" y="552" text-anchor="middle" font-size="13" font-weight="700" fill="#1e293b"
+        font-family="-apple-system,sans-serif">
+    What You See on the Dashboard
+  </text>
+
+  <!-- Chip 1 -->
+  <rect x="50" y="562" width="170" height="96" rx="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+  <text x="135" y="586" text-anchor="middle" font-size="11.5" font-weight="700" fill="#166534"
+        font-family="-apple-system,sans-serif">🚆 Train Status</text>
+  <line x1="60" y1="592" x2="210" y2="592" stroke="#bbf7d0" stroke-width="1"/>
+  <text x="135" y="610" text-anchor="middle" font-size="10.5" fill="#15803d"
+        font-family="-apple-system,sans-serif">On time · Track 3</text>
+  <text x="135" y="626" text-anchor="middle" font-size="10" fill="#4ade80"
+        font-family="-apple-system,sans-serif">7:44 AM → Penn Station</text>
+  <text x="135" y="642" text-anchor="middle" font-size="10" fill="#86efac"
+        font-family="-apple-system,sans-serif">No delays reported</text>
+
+  <!-- Chip 2 -->
+  <rect x="233" y="562" width="170" height="96" rx="10" fill="#fff7ed" stroke="#fed7aa" stroke-width="1"/>
+  <text x="318" y="586" text-anchor="middle" font-size="11.5" font-weight="700" fill="#9a3412"
+        font-family="-apple-system,sans-serif">⚠️ Line Advisories</text>
+  <line x1="243" y1="592" x2="393" y2="592" stroke="#fed7aa" stroke-width="1"/>
+  <text x="318" y="610" text-anchor="middle" font-size="10.5" fill="#c2410c"
+        font-family="-apple-system,sans-serif">M&amp;E Line — All clear</text>
+  <text x="318" y="626" text-anchor="middle" font-size="10" fill="#fb923c"
+        font-family="-apple-system,sans-serif">No active advisories</text>
+  <text x="318" y="642" text-anchor="middle" font-size="10" fill="#fdba74"
+        font-family="-apple-system,sans-serif">Normal weekday service</text>
+
+  <!-- Chip 3 -->
+  <rect x="417" y="562" width="170" height="96" rx="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+  <text x="502" y="586" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1e40af"
+        font-family="-apple-system,sans-serif">🚗 Drive Time</text>
+  <line x1="427" y1="592" x2="577" y2="592" stroke="#bfdbfe" stroke-width="1"/>
+  <text x="502" y="610" text-anchor="middle" font-size="10.5" fill="#1d4ed8"
+        font-family="-apple-system,sans-serif">18 min to station</text>
+  <text x="502" y="626" text-anchor="middle" font-size="10" fill="#60a5fa"
+        font-family="-apple-system,sans-serif">Light traffic on I-280</text>
+  <text x="502" y="642" text-anchor="middle" font-size="10" fill="#93c5fd"
+        font-family="-apple-system,sans-serif">Leave by 7:22 AM</text>
+
+  <!-- Chip 4 -->
+  <rect x="600" y="562" width="170" height="96" rx="10" fill="#f5f3ff" stroke="#ddd6fe" stroke-width="1"/>
+  <text x="685" y="586" text-anchor="middle" font-size="11.5" font-weight="700" fill="#5b21b6"
+        font-family="-apple-system,sans-serif">🚇 Subway</text>
+  <line x1="610" y1="592" x2="760" y2="592" stroke="#ddd6fe" stroke-width="1"/>
+  <text x="685" y="610" text-anchor="middle" font-size="10.5" fill="#6d28d9"
+        font-family="-apple-system,sans-serif">No delays reported</text>
+  <text x="685" y="626" text-anchor="middle" font-size="10" fill="#a78bfa"
+        font-family="-apple-system,sans-serif">Normal service</text>
+  <text x="685" y="642" text-anchor="middle" font-size="10" fill="#c4b5fd"
+        font-family="-apple-system,sans-serif">on your lines</text>
+
+  <!-- Footer note -->
+  <text x="430" y="694" text-anchor="middle" font-size="10" fill="#94a3b8"
+        font-family="-apple-system,sans-serif">
+    All data is fetched live on every refresh — nothing is stored or saved
+  </text>
+</svg>
+</body>
+</html>
